@@ -1,5 +1,7 @@
 from tkinter import *
 from tkinter import ttk
+from tkinter import messagebox
+import pymysql
 
 class Matricule:
     #----------------- Fenetre -------------
@@ -31,7 +33,6 @@ class Matricule:
         #----------------- Tools -------------
         Manage_Frame = Frame(self.root, bg='white')
         Manage_Frame.place(x=2, y=30,width=210,height=400)
-    
 
         lbl_name=Label(Manage_Frame, bg='white', text="Nom")
         lbl_name.pack()
@@ -48,22 +49,26 @@ class Matricule:
         email_Entry=Entry(Manage_Frame,textvariable=self.email_var, bd='2')
         email_Entry.pack()
 
+        lbl_matricule=Label(Manage_Frame, bg='white', text="Matricule")
+        lbl_matricule.pack()
+        matricule_Entry=Entry(Manage_Frame,textvariable=self.matricule_var, bd='2')
+        matricule_Entry.pack()
 
         lbl_fonction=Label(Manage_Frame, bg='white', text="Fonction")
         lbl_fonction.pack()
+
+
         combo_fonction=ttk.Combobox(Manage_Frame,textvariable=self.fonction_var,)
         combo_fonction['value']=('Etudiant','Directeur','Professeur','Chef département','Scolarité')
         combo_fonction.pack()
 
-        lbl_matricule=Label(Manage_Frame, bg='white', text="Matricule")
-        lbl_matricule.pack()
-        matricule_Entry=Entry(Manage_Frame, bd='2')
-        matricule_Entry.pack()
+   
         
         lbl_sup=Label(Manage_Frame, bg='#ffddcc', text="Entrer le nom pour supprimer")
         lbl_sup.pack()
         delete_Entry = Entry(Manage_Frame, textvariable=self.dell_var,bd='2')
         delete_Entry.pack()
+
 
         #----------------- Button -------------
         btn_Frame = Frame(self.root, bg='white')
@@ -72,7 +77,7 @@ class Matricule:
         title1 = Label(btn_Frame, text="Gestion des personnes", font=('Deco,14'), fg='white',bg='#283747')
         title1.pack(fill=X)
 
-        add_btn=Button(btn_Frame, text='Ajouter', bg='#B2BABB')
+        add_btn=Button(btn_Frame, text='Ajouter', bg='#B2BABB',command=self.add_personne)
         add_btn.place(x=33,y=33, width='150',height='30')
 
         del_btn=Button(btn_Frame, text='Supprimer', bg='#B2BABB')
@@ -89,7 +94,7 @@ class Matricule:
         
         #----------------- Search -------------
         search_Frame= Frame(self.root, bg='white')
-        search_Frame.place(x=220,y=30,width=1134,height=50)
+        search_Frame.place(x=220,y=30,width=1260,height=50)
         
         lbl_search=Label(search_Frame, text='Recherche', bg='white')
         lbl_search.place(x=40,y=12)
@@ -104,32 +109,93 @@ class Matricule:
         se_btn = Button(search_Frame, text='Cherccher',bg='#B2BABB')
         se_btn.place(x=420,y=12, width=100, height=23)
 
+
         #----------------- Résultats -------------
         resultats_Frame=Frame(self.root, bg='white')
         resultats_Frame.place(x=220,y=84, width=1100,height=560)
             # ---------- Scroll---------
-        scroll_x=Scrollbar(resultats_Frame, orient=HORIZONTAL)
-        scroll_y=Scrollbar(resultats_Frame,orient=VERTICAL)
+        #scroll_x=Scrollbar(resultats_Frame, orient=HORIZONTAL)
+        #scroll_y=Scrollbar(resultats_Frame,orient=VERTICAL)
+           
             # ---------- Treeview---------
         self.personne_table=ttk.Treeview(resultats_Frame,
-        columns=('nom','prenom','email','fonction','matricule'),
-        xscrollcommand=scroll_x.set,
-        yscrollcommand=scroll_y.set
+        columns=('id','nom','prenom','email','matricule','fonction'),
+        #xscrollcommand=scroll_x.set,
+        #yscrollcommand=scroll_y.set
         )
-        self.personne_table.place(x=18,y=1,width=1080, height=480)
-        scroll_x.pack(side=BOTTOM, fill=X)
-        scroll_y.pack(side=RIGHT, fill=Y)
-        scroll_x.config(command=self.personne_table.xview)
-        scroll_y.config(command=self.personne_table.yview)
+        self.personne_table.place(x=18,y=1,width=1230, height=500)
+        #scroll_x.pack(side=BOTTOM, fill=X)
+        #scroll_y.pack(side=RIGHT, fill=Y)
+        #scroll_x.config(command=self.personne_table.xview)
+        #scroll_y.config(command=self.personne_table.yview)
 
         self.personne_table['show']='headings'
-        
+        self.personne_table.heading('id', text='ID')
         self.personne_table.heading('nom', text='Nom')
         self.personne_table.heading('prenom', text='Prénom')
         self.personne_table.heading('email', text='Email')
-        self.personne_table.heading('fonction', text='Fonction')
         self.personne_table.heading('matricule', text='Matricule')
+        self.personne_table.heading('fonction', text='Fonction')
         
+        
+        #Controler les dimension des colonnes
+        self.personne_table.column('id',width=20)
+        #self.personne_table.column('nom',width=125)
+        #self.personne_table.column('prenom',width=30)
+        #self.personne_table.column('email',width=65)
+        #self.personne_table.column('matricule',width=65)
+        #self.personne_table.column('fonction',width=125)
+
+
+
+
+        
+        
+        #----------------- Connexion et ajout -------------
+        self.fetch_all()
+
+    
+    def add_personne(self):
+        con=pymysql.connect(
+            host='localhost',
+            user='root',
+            password='',
+            database='smart_parking')
+        cur=con.cursor()
+
+        cur.execute("insert into personne values(%s,%s,%s,%s,%s,%s)",(
+            
+            self.id_var.get(),
+            self.nom_var.get(),
+            self.prenom_var.get(),
+            self.email_var.get(),
+            self.matricule_var.get(),
+            self.fonction_var.get(), ))
+
+        con.commit()
+        messagebox.showinfo("information", "L'ajout est effectué avec...")
+
+        self.fetch_all()
+        self.clear()
+        con.close()
+
+    #------- Récupérer les données   
+    def fetch_all(self):
+        con=pymysql.connect(
+            host='localhost',
+            user='root',
+            password='',
+            database='smart_parking')
+        cur=con.cursor()
+        cur.execute('select * from personne')
+        rows = cur.fetchall()
+        if len (rows) !=0:
+            self.personne_table.delete(*self.personne_table.get_children())
+            for row in rows:
+                self.personne_table.insert("",END, values=row)
+            con.commit()
+        con.close() 
+
 
 
 root = Tk()
