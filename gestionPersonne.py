@@ -252,7 +252,6 @@ class users:
             database='smart_parking')
         cur = con.cursor()
         cur.execute("update personne set nom=%s, prenom=%s, email=%s, matricule=%s, fonction=%s WHERE id=%s", (
-
             self.nom_var.get(),
             self.prenom_var.get(),
             self.email_var.get(),
