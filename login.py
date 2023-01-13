@@ -25,7 +25,7 @@ def signin() :
     if result:
         messagebox.showinfo("Bienvenue","Bienvenue dans votre espace Smart Parking")
         log.destroy()
-        call(["python", "Dashboard.py"])
+        call(["python", "main.py"])
         return True
     else:
         messagebox.showinfo("Invalid", " Nom d'utilisateur ou mot de passe Invalide !")
