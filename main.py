@@ -1,35 +1,29 @@
 from idlelib import tree
 from subprocess import call
-from detection.controlle import *
-from detection.detection import *
 
 import mysql
 from PIL import Image, ImageTk
-import pymysql
 from datetime import *
 import time
 from mysql import connector
 
-from controller import controller
-from tkinter import ttk
+from tkinter import ttk, FLAT
 from tkinter import messagebox
 
 try:
-    import tkinter as tk  # python 3
-    from tkinter import font as tkfont, ttk, END  # python 3
+    import tkinter as tk
+    from tkinter import font as tkfont, ttk, END
 except ImportError:
-    import Tkinter as tk  # python 2
-    import tkFont as tkfont  # python 2
+    import Tkinter as tk
+    import tkFont as tkfont
+    import ttk as ttk
+    import END as END
 
 
 class Dashboard(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         self.title("Smart parking Center")
-        self.geometry("1366x768")
-        self.resizable(0, 0)
-        self.state("zoomed")
-        self.config(background='#b5c7de')
 
         self.title_font = tkfont.Font(family='Helvetica', size=18, weight="bold", slant="italic")
 
@@ -39,17 +33,14 @@ class Dashboard(tk.Tk):
         container.grid_columnconfigure(0, weight=1)
 
         self.frames = {}
-        for F in (StartPage, PageOne, PageTwo):
+        for F in (StartPage, PageOne, PageTwo, LoginPage):
             page_name = F.__name__
             frame = F(window=container, controller=self)
             self.frames[page_name] = frame
 
-            # put all of the pages in the same location;
-            # the one on the top of the stacking order
-            # will be the one that is visible.
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.show_frame("StartPage")
+        self.show_frame("LoginPage")
 
     def show_frame(self, page_name):
         '''Show a frame for the given page name'''
@@ -57,7 +48,126 @@ class Dashboard(tk.Tk):
         frame.tkraise()
 
 
-# ==========================================Page dashboard =====================================
+# ==========================================Login page================================================
+# =========================================================================================================
+
+class LoginPage(tk.Frame):
+    def __init__(self, window, controller):
+        tk.Frame.__init__(self, window)
+        self.controller = controller
+        self.configure(bg="#cce0ff")
+        controller.title("Smart parking Center")
+        controller.geometry('925x500+300+200')
+        controller.resizable(False, False)
+
+        self.img = ImageTk.PhotoImage(Image.open("images/login_pic.png"))
+        tk.Label(self, image=self.img, bg="#cce0ff").place(x=50, y=50)
+
+        self.Fr = tk.Frame(self, width=350, height=450, bg="#cce0ff")
+        self.Fr.place(x=480, y=50)
+        self.Titre = tk.Label(self.Fr, text="Se connecter", fg='#0073e6', bg='#cce0ff', font=('yu gothic ui ', 25, 'bold'))
+        self.Titre.place(x=45, y=2)
+
+        self.signIn_img = ImageTk.PhotoImage(Image.open("images/hyy.png"))
+        tk.Label(self.Fr, image=self.signIn_img, bg="#cce0ff").place(x=80, y=50)
+
+###########################Nom d'utilisateur###############################
+        self.User_label = tk.Label(self.Fr, text="Nom d'utilisateur", fg='#303030', border=0, bg='#cce0ff',
+                           font=('Microsoft Yahei UI light', 11))
+        self.User_label.place(x=30, y=180)
+        self.User = tk.Entry(self.Fr, width=25, fg='#303030', highlightthickness=0, relief=FLAT, border=0, bg='#cce0ff',
+                     font=('Microsoft Yahei UI light', 11))
+        self.User.place(x=30, y=210)
+        self.User.bind('<FocusIn>', self.on_enterUs)
+        # User.bind('<FocusOut>', on_leave)
+
+    # ============= Mot de passe ==========================================================
+        tk.Frame(self.Fr, width=260, height=1, bg='#696969').place(x=25, y=230)
+
+        self.MDP_label = tk.Label(self.Fr, text="Mot de passe", fg='#303030', border=0, bg='#cce0ff',
+                          font=('Microsoft Yahei UI light', 11))
+        self.MDP_label.place(x=30, y=260)
+        self.MDP = tk.Entry(self.Fr, highlightthickness=0, relief=FLAT, width=25, fg='#303030', border=0, bg='#cce0ff',
+                    font=('Microsoft Yahei UI light', 11), show="*")
+        self.MDP.place(x=30, y=290)
+        self.MDP.bind('<FocusIn>', self)
+        # MDP.bind('<FocusOut>', on_leave)
+        tk.Frame(self.Fr, width=260, height=1, bg='#696969').place(x=25, y=310)
+
+    # ============= show/hide password ==========================================================
+        self.show_image = ImageTk.PhotoImage \
+            (file='images/show.png')
+        self.hide_image = ImageTk.PhotoImage \
+            (file='images/hide.png')
+        self.show_button = tk.Button(self.Fr, image=self.hide_image, command=self.hide, relief=FLAT, activebackground="#cce0ff", borderwidth=0,
+                             background="#cce0ff", cursor="hand2")
+        self.show_button.place(x=270, y=290)
+
+        # ============= Button login ==========================================================
+        self.signinb = tk.Button(self.Fr, width=20, font=('Microsoft Yahei', 14,), pady=4, text="Me connecter", fg='white', bg='#0073e6',
+               command=self.signin, border=0)
+        self.signinb.place(x=35, y=340)
+        mdpo = tk.Button(self.Fr, text='Mot de passe oublier !', border=0, cursor='hand2', font=('yu gothic ui', 9),
+                      bg='#cce0ff', fg='gray')
+        mdpo.place(x=35, y=390)
+
+        '''button = tk.Button(self, text="Retour",
+                                       command=lambda: controller.show_frame("StartPage"))
+                button.pack()'''
+
+    # ============= Fonctions ====================================================================
+    def signin(self):
+        con = mysql.connector.connect(user='root', password='', host='localhost', port=3308, database='smart_parking')
+        cursor = con.cursor()
+        uname = self.User.get()
+        password = self.MDP.get()
+        sql = "SELECT * FROM admin WHERE Nom_utilisateur=%s AND Mot_de_passe=%s"
+        cursor.execute(sql, [(uname), (password)])
+        result = cursor.fetchall()
+        if result:
+            win = tk.Toplevel()
+            win.title('Bienvenue')
+            message = "Bienvenue dans votre espace Smart Parking"
+            tk.Label(win, text=message).pack()
+            tk.Button(win, text='OK', command=lambda: self.controller.show_frame("StartPage")).pack()
+            return True
+        else:
+            messagebox.showinfo("Invalid", " Nom d'utilisateur ou mot de passe Invalide !")
+            return False
+
+    def endProgam(self):
+        # self.quit()
+        self.destroy()
+
+    def on_enterUs(self):
+        self.User.delete(0, 'end')
+
+    def on_leaveUs(self):
+        name = self.User.get()
+        if name == '': self.User.insert(0, "Entrez votre nom utilisateur")
+
+    def on_enterMDP(self):
+        self.MDP.delete(0, 'end')
+
+    def on_leaveMDP(self):
+        mdp = self.MDP.get()
+        if mdp == '':
+            self.MDP.insert(0, "Entrez votre mot de passe ")
+
+    def showP(self):
+        hide_button = tk.Button(self.Fr, image=self.show_image, command=self.hide, relief=FLAT, activebackground="#cce0ff", borderwidth=0,
+                             background="#cce0ff", cursor="hand2")
+        hide_button.place(x=270, y=290)
+        self.MDP.config(show='')
+
+    def hide(self):
+        show_button = tk.Button(self.Fr, image=self.hide_image, command=self.showP, relief=FLAT, activebackground="#cce0ff",
+                             borderwidth=0, background="#cce0ff", cursor="hand2")
+        show_button.place(x=270, y=290)
+        self.MDP.config(show='*')
+
+
+# ==========================================Page dashboard ===============================================
 # =========================================================================================================
 class StartPage(tk.Frame):
 
@@ -75,13 +185,14 @@ class StartPage(tk.Frame):
         # ==============================================================================
         header = tk.Frame(self, bg='#0d294b')
         header.place(x=300, y=0, width=1500, height=60)
-        header_text = tk.Label(self, text="Smart parking Center", fg='white', bg='#0d294b',
+        header_text = tk.Label(self,text="Smart parking Center", fg='white', bg='#0d294b',
                                font=('yu gothic ui ', 25, 'bold'))
         header_text.place(x=300, y=10)
         logout_btn = tk.Button(self, text="Se déconnecter", bg='#b5c7de',
                                font=("'Microsoft Yahei'", 13, "bold"), bd=0, fg='white',
                                pady=8, width=30, command=self.logout, cursor='hand2', activebackground='#476d9e')
         logout_btn.place(x=1200, y=7)
+
         # ==============================================================================
         # ================== SIDEBAR ===================================================
         # ==============================================================================
@@ -111,7 +222,8 @@ class StartPage(tk.Frame):
         # ==============================================================================
 
         # logo
-        logoImage = Image.open('imagesIc\\logo2.png')
+
+        logoImage = Image.open('imagesIc/logo2.png')
         photo = ImageTk.PhotoImage(logoImage)
         logo = tk.Label(sidebar, image=photo, bg='#e6f0ff')
         logo.image = photo
@@ -165,7 +277,7 @@ class StartPage(tk.Frame):
         # =============================================================================
 
         # Body Frame 1
-        total_place = tk.Label(bodyFrame2, text='140', bg='#009aa5', fg='white',
+        total_place = tk.Label(bodyFrame2, text='150', bg='#009aa5', fg='white',
                                font=("Microsoft Yahei", 30, "bold"))
         total_place.place(x=120, y=90)
 
@@ -210,22 +322,25 @@ class StartPage(tk.Frame):
         placepersonnel_label.place(x=5, y=5)
 
         # date and Time
-        clock_image = ImageTk.PhotoImage(file="imagesIc\\time.png")
-        date_time_image = tk.Label(sidebar, image=clock_image, bg="#e6f0ff")
-        date_time_image.place(x=88, y=20)
+        self.clock_image = Image.open('imagesIc/time.png')
+        self.photo = ImageTk.PhotoImage(self.clock_image)
+        self.date_time_image = tk.Label(sidebar, image=self.photo, bg="#e6f0ff")
+        self.date_time_image.image=self.photo
+        self.date_time_image.place(x=80, y=20)
 
-        self.date_time = tk.Label(controller)
-        self.date_time.place(x=115, y=15)
+        self.date_time = tk.Label(self)
+        self.date_time.place(x=130, y=20)
         self.show_time()
 
     def show_time(self):
-        timer = time.strftime("%H:%M:%S")
-        dater = time.strftime('%Y/%m/%d')
-        set_text = f"  {timer} \n {dater}"
-        self.date_time.configure(text=set_text, font=("", 13, "bold"), bd=0, bg="#e6f0ff", fg="#00294B")
+        self.timer = time.strftime("%H:%M:%S")
+        self.dater = time.strftime('%Y/%m/%d')
+        self.set_text = f"  {self.timer} \n {self.dater}"
+        self.date_time.configure(text=self.set_text, font=("", 13, "bold"), bg="#e6f0ff", bd=0, fg="#00294B")
         self.date_time.after(100, self.show_time)
 
     def logout(self):
+        logout = messagebox.showinfo("information", "Êtes-vous sûre que vous voullez se déconnecter ?")
         self.controller.destroy()
         call(["python", "login.py"])
 
@@ -245,18 +360,97 @@ class PageOne(tk.Frame):
         # ==============================================================================
         # ================== HEADER ====================================================
         # ==============================================================================
+        header = tk.Frame(self, bg='#0d294b')
+        header.place(x=300, y=0, width=1500, height=60)
+        header_text = tk.Label(self, text="Smart parking Center", fg='white', bg='#0d294b',
+                               font=('yu gothic ui ', 25, 'bold'))
+        header_text.place(x=300, y=10)
         header = tk.Frame(self, bg='#0D294B')
         header.place(x=0, y=0, width=1550, height=60)
 
-        # ================== BUTTONS ===================================================
 
-        back_btn = tk.Button(self, text="Retour", bg='#b5c7de', cursor='hand2', activebackground='#476d9e',
-                             font=("'Microsoft Yahei'", 13, "bold"), bd=0, fg='white',
-                             pady=8, width=30, command=lambda: controller.show_frame("StartPage"))
-        back_btn.place(x=800, y=7)
+        # ================== BUTTONS ===================================================
+        logout_btn = tk.Button(self, text="Se déconnecter", bg='#b5c7de',
+                               font=("'Microsoft Yahei'", 13, "bold"), bd=0, fg='white',
+                               pady=8, width=30, command=self.logout, cursor='hand2', activebackground='#476d9e')
+        logout_btn.place(x=1200, y=7)
+        # ==============================================================================
+        # ================== SIDEBAR ===================================================
+        # ==============================================================================
+        sidebar = tk.Frame(self, bg='#e6f0ff', highlightcolor="white")
+        sidebar.place(x=0, y=0, width=300, height=850)
+
+        # logo
+        logoImage = Image.open('imagesIc/logo2.png')
+        photo = ImageTk.PhotoImage(logoImage)
+        logo = tk.Label(sidebar, image=photo, bg='#e6f0ff')
+        logo.image = photo
+        logo.place(x=20, y=110)
+
+        # Dashboard
+        dashboardI = Image.open('images/dashboard.png')
+        dashboardImage = ImageTk.PhotoImage(dashboardI)
+        dashboard = tk.Label(sidebar, image=dashboardImage, bg='#e6f0ff')
+        dashboard.image = dashboardImage
+        dashboard.place(x=24, y=289)
+
+        dashboard_text = tk.Button(sidebar, text="Dashboard", bg='#e6f0ff',
+                            command=lambda: controller.show_frame("StartPage"), font=("", 15, "bold"),
+                            bd=0, cursor='hand2', activebackground='#b5c7de')
+        dashboard_text.place(x=80, y=287)
+
+        # PlaceParking
+        PlaceParking = tk.PhotoImage(file='images/placeP.png')
+        PP = tk.Label(sidebar, image=PlaceParking, bg='#e6f0ff')
+        PP.image = PlaceParking
+        PP.place(x=24, y=340)
+
+        PP_text = tk.Button(sidebar, text="Gestion des places", bg='#b5c7de', font = ("", 15, "bold"), bd=0,
+        cursor = 'hand2', width = 20, activebackground='#b5c7de')
+        PP_text.place(x=80, y=345)
+
+        # Personne
+        Parking = ImageTk.PhotoImage(file='images/parking.png')
+        P = tk.Label(sidebar, image=Parking, bg='#e6f0ff')
+        P.image = Parking
+        P.place(x=24, y=395)
+
+        Parking_text = tk.Button(sidebar, text="Gestion Personne", bg='#e6f0ff', font=("", 15, "bold"), bd=0,
+                                 cursor='hand2', command=lambda: controller.show_frame("PageTwo"),
+                                 activebackground='#b5c7de')
+        Parking_text.place(x=80, y=402)
+
+        # Exit
+        ExitImage = ImageTk.PhotoImage(file='images/exit.png')
+        Exit = tk.Label(sidebar, image=ExitImage, bg='#e6f0ff')
+        Exit.image = ExitImage
+        Exit.place(x=24, y=452)
+
+        Exit_text = tk.Button(sidebar, text="Exit", bg='#e6f0ff', font=("", 15, "bold"), bd=0,
+                              command=controller.destroy,
+                              cursor='hand2', activebackground='#b5c7de')
+        Exit_text.place(x=80, y=462)
+
+        # date and Time
+        self.clock_image = Image.open('imagesIc/time.png')
+        self.photo = ImageTk.PhotoImage(self.clock_image)
+        self.date_time_image = tk.Label(sidebar, image=self.photo, bg="#e6f0ff")
+        self.date_time_image.image = self.photo
+        self.date_time_image.place(x=80, y=20)
+
+        self.date_time = tk.Label(self)
+        self.date_time.place(x=130, y=20)
+        self.show_time()
+
+    def show_time(self):
+        self.timer = time.strftime("%H:%M:%S")
+        self.dater = time.strftime('%Y/%m/%d')
+        self.set_text = f"  {self.timer} \n {self.dater}"
+        self.date_time.configure(text=self.set_text, font=("", 13, "bold"), bg="#e6f0ff", bd=0, fg="#00294B")
+        self.date_time.after(100, self.show_time)
 
         # ================== BODY ===================================================
-        con = pymysql.connect(host="localhost", port=3308, user="root", password="", database="smart_parking")
+        con = mysql.connector.connect(host="localhost", port=3308, user="root", password="", database="smart_parking")
         cur = con.cursor()
         cur.execute("SELECT * FROM parking")
         result = cur.fetchall()
@@ -278,7 +472,7 @@ class PageOne(tk.Frame):
             cur.close()
 
     def main(self):
-        con = pymysql.connect(
+        con = mysql.connector.connect(
             host="localhost",
             port=3308,
             user="root",
@@ -295,6 +489,7 @@ class PageOne(tk.Frame):
         cur.close()
 
     def logout(self):
+        logout = messagebox.showinfo("information", "Êtes-vous sûre que vous voullez se déconnecter ?")
         self.controller.destroy()
         call(["python", "login.py"])
 
@@ -311,34 +506,25 @@ class PageTwo(tk.Frame):
         controller.resizable(0, 0)
         controller.state("zoomed")
 
-        button = tk.Button(self, text="Retour",
-                               command=lambda: controller.show_frame("StartPage"))
-        button.pack()
         # ---------Header de la fenetre------
+        header_text = tk.Label(self, text="Smart parking Center", fg='white', bg='#0d294b',
+                               font=('yu gothic ui ', 25, 'bold'))
+        header_text.place(x=300, y=10)
         header = tk.Frame(self, bg='#00294B')
         header.place(x=300, y=0, width=1300, height=60)
 
-        retourImage = Image.open('imagesIc\\retour.png')
-        photo = ImageTk.PhotoImage(retourImage)
-        retour = tk.Label(self, image=photo, bd=0)
-        retour.image = photo
-        retour.place(x=1460, y=15)
-
-        retour_text = tk.Button(self, text='retour', bg='#b5c7de', font=("", 13, "bold"), bd=0, fg='#0D294B',
-                                  cursor='hand2', activebackground='#b5c7de')
-        retour_text.place(x=1500, y=15)
 
         # ----------------- Variable -------------
 
-        id_var = tk.StringVar()
-        nom_var = tk.StringVar()
-        prenom_var = tk.StringVar()
-        email_var = tk.StringVar()
-        matricule_var = tk.StringVar()
-        fonction_var = tk.StringVar()
-        dell_var = tk.StringVar()
-        se_by = tk.StringVar()
-        se_var = tk.StringVar()
+        self.id_var = tk.StringVar()
+        self.nom_var = tk.StringVar()
+        self.prenom_var = tk.StringVar()
+        self.email_var = tk.StringVar()
+        self.matricule_var = tk.StringVar()
+        self.fonction_var = tk.StringVar()
+        self.dell_var = tk.StringVar()
+        self.se_by = tk.StringVar()
+        self.se_var = tk.StringVar()
         # ----------------------------------
         # -----------------------------------
         # ---------Sidebar------------------
@@ -346,22 +532,20 @@ class PageTwo(tk.Frame):
         sidebar.place(x=0, y=0, width=300, height=850)
 
         # --------- time---------------
-        clock_image = Image.open('imagesIc\\time.png')
-        photo = ImageTk.PhotoImage(clock_image)
-        date_time_image = tk.Label(sidebar, image=photo, bg='#e6f0ff')
-        date_time_image.image = photo
-        date_time_image.place(x=70, y=20)
+        self.clock_image = Image.open('imagesIc/time.png')
+        self.photo = ImageTk.PhotoImage(self.clock_image)
+        self.date_time_image = tk.Label(sidebar, image=self.photo, bg="#e6f0ff")
+        self.date_time_image.image = self.photo
+        self.date_time_image.place(x=80, y=20)
 
-        date_time = tk.Label(controller)
-        date_time.place(x=130, y=20)
+        self.date_time = tk.Label(self)
+        self.date_time.place(x=130, y=20)
         self.show_time()
-
-        date_time.configure(text=self.set_text, font=("", 13, "bold"), bd=0, bg='#e6f0ff', fg="#00294B")
-        date_time.after(1000, self.show_time)
 
 
         # -----logo--------
-        logoImage = Image.open('imagesIc\\logo2.png')
+
+        logoImage = Image.open('imagesIc/logo2.png')
         photo = ImageTk.PhotoImage(logoImage)
         logo = tk.Label(sidebar, image=photo, bg='#e6f0ff')
         logo.image = photo
@@ -369,32 +553,33 @@ class PageTwo(tk.Frame):
 
         # -----Formulaire--------
         # Label
-        tk.Label(text="Nom", font=("", 13, "bold"), fg="#0D294B").place(x=15, y=250)
-        tk.Label(text="Prénom", font=("", 13, "bold"), fg="#0D294B").place(x=15, y=280)
-        tk.Label(text="Email", font=("", 13, "bold"), fg="#0D294B").place(x=15, y=310)
-        tk.Label(text="Matricule", font=("", 13, "bold"), fg="#0D294B").place(x=15, y=340)
-        tk.Label(text="Fonction", font=("", 13, "bold"), fg="#0D294B").place(x=15, y=370)
+        tk.Label(self, text="PersonID", font=("", 13, "bold"), fg="#0D294B", bg="#e6f0ff").place(x=15, y=250)
+        tk.Label(self, text="Nom", font=("", 13, "bold"), fg="#0D294B", bg="#e6f0ff").place(x=15, y=280)
+        tk.Label(self, text="Prénom", font=("", 13, "bold"), fg="#0D294B",bg="#e6f0ff").place(x=15, y=310)
+        tk.Label(self, text="Email", font=("", 13, "bold"), fg="#0D294B", bg="#e6f0ff").place(x=15, y=340)
+        tk.Label(self, text="Matricule", font=("", 13, "bold"), fg="#0D294B", bg="#e6f0ff").place(x=15, y=370)
+        tk.Label(self, text="Fonction", font=("", 13, "bold"), fg="#0D294B", bg="#e6f0ff").place(x=15, y=400)
 
         # Entry
-        nom_entry = tk.Entry(sidebar, textvariable=id_var, font=("", 13, "bold"), fg="#0D294B", width=20)
-        nom_entry.place(x=100, y=200)
-        nom_entry = tk.Entry(sidebar, textvariable=nom_var, font=("", 13, "bold"), fg="#0D294B", width=20)
-        nom_entry.place(x=100, y=250)
-        prenom_entry = tk.Entry(sidebar, textvariable=prenom_var, font=("", 13, "bold"), fg="#0D294B",
-                                  width=20)
-        prenom_entry.place(x=100, y=280)
-        email_entry = tk.Entry(sidebar, textvariable=email_var, font=("", 13, "bold"), fg="#0D294B",
-                                 width=20)
-        email_entry.place(x=100, y=310)
-        matricule_entry = tk.Entry(sidebar, textvariable=matricule_var, font=("", 13, "bold"), fg="#0D294B",
-                                     width=20)
-        matricule_entry.place(x=100, y=340)
+        id_entry = tk.Entry(sidebar, textvariable=self.id_var, font=("", 10, "bold"), fg="#0D294B", width=26)
+        id_entry.place(x=100, y=250)
+        nom_entry = tk.Entry(sidebar, textvariable=self.nom_var, font=("", 10, "bold"), fg="#0D294B", width=26)
+        nom_entry.place(x=100, y=280)
+        prenom_entry = tk.Entry(sidebar, textvariable=self.prenom_var, font=("", 10, "bold"), fg="#0D294B",
+                                  width =26)
+        prenom_entry.place(x=100, y=310)
+        email_entry = tk.Entry(sidebar, textvariable=self.email_var, font=("", 10, "bold"), fg="#0D294B",
+                                 width= 26)
+        email_entry.place(x=100, y=340)
+        matricule_entry = tk.Entry(sidebar, textvariable=self.matricule_var, font=("", 10, "bold"), fg="#0D294B",
+                                width=26)
+        matricule_entry.place(x=100, y=370)
 
         # combobox
 
-        combo_fonction = ttk.Combobox(sidebar, textvariable=fonction_var, )
+        combo_fonction = ttk.Combobox(sidebar, textvariable=self.fonction_var, )
         combo_fonction['value'] = ('Etudiant', 'Directeur', 'Professeur', 'Chef département', 'Scolarité')
-        combo_fonction.place(x=100, y=370, width=185, height=24)
+        combo_fonction.place(x=100, y=400, width=185, height=24)
 
         # -----Buttons--------
 
@@ -409,6 +594,14 @@ class PageTwo(tk.Frame):
 
         clear_btn = tk.Button(sidebar, text='Vider', bg='#A42A9F', command=self.clear)
         clear_btn.place(x=150, y=540, width='130', height='40')
+
+        logout_btn = tk.Button(self, text="Se déconnecter", bg='#b5c7de',
+                               font=("'Microsoft Yahei'", 13, "bold"), bd=0, fg='white',
+                               pady=8, width=30, command=self.logout, cursor='hand2', activebackground='#476d9e')
+        logout_btn.place(x=1200, y=7)
+
+        exit_btn = tk.Button(self, text='Retour', bg='#EDAD13', command=lambda: controller.show_frame("StartPage"))
+        exit_btn.place(x=70, y=660, width='160', height='25')
         # ----------------------------------
         # -----------------------------------
         # --------- Le corps------------------
@@ -442,18 +635,24 @@ class PageTwo(tk.Frame):
         # --------- fonctions------------------
 
     def show_time(self):
-        timer = time.strftime("%H:%M:%S")
-        dater = time.strftime('%Y/%m/%d')
-        self.set_text = f"  {timer} \n {dater}"
+        self.timer = time.strftime("%H:%M:%S")
+        self.dater = time.strftime('%Y/%m/%d')
+        self.set_text = f"  {self.timer} \n {self.dater}"
+        self.date_time.configure(text=self.set_text, font=("", 13, "bold"), bg="#e6f0ff", bd=0, fg="#00294B")
+        self.date_time.after(1000, self.show_time)
 
+    def logout(self):
+        logout = messagebox.showinfo("information", "Êtes-vous sûre que vous voullez se déconnecter ?")
+        self.controller.destroy()
+        call(["python", "login.py"])
 
     def clear(self):
 
-        self.controller.nom_var.set('')
-        self.controller.prenom_var.set('')
-        self.controller.email_var.set('')
-        self.controller.matricule_var.set('')
-        self.controller.fonction_var.set('')
+        self.nom_var.set('')
+        self.prenom_var.set('')
+        self.email_var.set('')
+        self.matricule_var.set('')
+        self.fonction_var.set('')
 
         # Récupérer les données
 
@@ -470,7 +669,7 @@ class PageTwo(tk.Frame):
         if len(rows) != 0:
             self.personne_table.delete(*self.personne_table.get_children())
             for row in rows:
-                self.controller.personne_table.insert("", END, values=row)
+                self.personne_table.insert("", END, values=row)
             con.commit()
         con.close()
 
@@ -487,12 +686,12 @@ class PageTwo(tk.Frame):
 
         cur.execute("insert into personne values(%s,%s,%s,%s,%s,%s)", (
 
-            self.controller.id_var.get(),
-            self.controller.nom_var.get(),
-            self.controller.prenom_var.get(),
-            self.controller.email_var.get(),
-            self.controller.matricule_var.get(),
-            self.controller.fonction_var.get(),))
+            self.id_var.get(),
+            self.nom_var.get(),
+            self.prenom_var.get(),
+            self.email_var.get(),
+            self.matricule_var.get(),
+            self.fonction_var.get(),))
 
         con.commit()
         messagebox.showinfo("information", "L'ajout est effectué avec...")
@@ -504,28 +703,28 @@ class PageTwo(tk.Frame):
         # Vider
 
     def clear(self):
-        self.controller.id_var.set('')
-        self.controller.nom_var.set('')
-        self.controller.prenom_var.set('')
-        self.controller.email_var.set('')
-        self.controller.matricule_var.set('')
-        self.controller.fonction_var.set('')
+        self.id_var.set('')
+        self.nom_var.set('')
+        self.prenom_var.set('')
+        self.email_var.set('')
+        self.matricule_var.set('')
+        self.fonction_var.set('')
 
         # Sélection
 
     def get_cursor(self, ev):
-        cursor_row = self.controller.personne_table.focus()  # au moment du clique
-        contents = self.controller.personne_table.item(
+        cursor_row = self.personne_table.focus()  # au moment du clique
+        contents = self.personne_table.item(
             cursor_row)  # Ramener ce que j'ai cliquer et mais le dans la variable contents
         # Récuperer les données que j'ai cliqué
         row = contents['values']
         # self.id_var.set(row[0])
-        self.controller.id_var.set(row[0])
-        self.controller.nom_var.set(row[1])
-        self.controller.prenom_var.set(row[2])
-        self.controller.email_var.set(row[3])
-        self.controller.matricule_var.set(row[4])
-        self.controller.fonction_var.set(row[5])
+        self.id_var.set(row[0])
+        self.nom_var.set(row[1])
+        self.prenom_var.set(row[2])
+        self.email_var.set(row[3])
+        self.matricule_var.set(row[4])
+        self.fonction_var.set(row[5])
 
         # update
 
@@ -539,12 +738,12 @@ class PageTwo(tk.Frame):
         cur = con.cursor()
         cur.execute("update personne set nom=%s, prenom=%s, email=%s, matricule=%s, fonction=%s WHERE id=%s", (
 
-            self.controller.nom_var.get(),
-            self.controller.prenom_var.get(),
-            self.controller.email_var.get(),
-            self.controller.matricule_var.get(),
-            self.controller.fonction_var.get(),
-            self.controller.id_var.get()))
+            self.nom_var.get(),
+            self.prenom_var.get(),
+            self.email_var.get(),
+            self.matricule_var.get(),
+            self.fonction_var.get(),
+            self.id_var.get()))
         con.commit()
         self.fetch_all()
         self.clear()
@@ -561,7 +760,7 @@ class PageTwo(tk.Frame):
             port=3308,
             database='smart_parking')
         cur = con.cursor()
-        cur.execute("delete from personne WHERE id=%s", self.controller.id_var.get())
+        cur.execute("delete from personne WHERE id=%s", self.id_var.get(),(self.nom_var.get()))
         con.commit()
         self.fetch_all()
         self.clear()
@@ -574,5 +773,3 @@ if __name__ == "__main__":
     app = Dashboard()
     app.iconbitmap("images\IsaIt_icon.ico")
     app.mainloop()
-    camera_controlle()
-    plate_detection('capture_0.png')
